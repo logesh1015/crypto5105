@@ -1,0 +1,54 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <openssl/des.h>
+
+void encrypt_des3_cbc(const char *input, const char *key, const char *iv, char *output) {
+    DES_cblock des3key1, des3key2, des3key3;
+    DES_key_schedule ks1, ks2, ks3;
+    memcpy(des3key1, key, 8);
+    memcpy(des3key2, key + 8, 8);
+    memcpy(des3key3, key + 16, 8);
+
+    DES_set_key(&des3key1, &ks1);
+    DES_set_key(&des3key2, &ks2);
+    DES_set_key(&des3key3, &ks3);
+    DES_cblock ivec;
+    memcpy(ivec, iv, 8);
+    size_t input_len = strlen(input);
+    size_t padded_len = ((input_len + 7) / 8) * 8;
+    char *padded_input = malloc(padded_len);
+    memcpy(padded_input, input, input_len);
+    memset(padded_input + input_len, 0, padded_len - input_len);
+
+    for (size_t i = 0; i < padded_len; i += 8) {
+        DES_cblock input_block, output_block;
+        memcpy(input_block, padded_input + i, 8);
+        if (i == 0) {
+            DES_cblock_xor(&input_block, &ivec, &input_block);
+        } else {
+            DES_cblock_xor(&input_block, &output_block, &input_block);
+        }
+
+        DES_ecb3_encrypt(&input_block, &output_block, &ks1, &ks2, &ks3, DES_ENCRYPT);
+        memcpy(output + i, output_block, 8);
+    }
+
+    free(padded_input);
+}
+
+int main() {
+    const char *input = "Hello123";
+    const char *key = "0123456789abcdefghabcdefgh";  
+    const char *iv = "abcdefgh";  
+    char output[64];
+    encrypt_des3_cbc(input, key, iv, output);
+    printf("Encrypted: ");
+    for (size_t i = 0; i < sizeof(output); ++i) {
+        printf("%02x", (unsigned char)output[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
